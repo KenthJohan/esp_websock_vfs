@@ -1,6 +1,5 @@
 idf_component_register(SRCS "main.c" 
 "hardware/hardware_wifi.c"
-"hardware/scanap.c"
 "myware/myware_nvs.c"
 "web/web_server.c"
 "web/http_wscool.c"

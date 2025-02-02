@@ -6,7 +6,7 @@
 #include <esp_log.h>
 
 #include "hardware/hardware_wifi.h"
-#include "hardware/scanap.h"
+#include "hardware/hardware_wifi_scanap.h"
 #include "myware/myware_nvs.h"
 
 static struct {
@@ -34,9 +34,9 @@ static int cb_wifi_cred(void *context, int argc, char **argv)
 
 static int cb_wifi_scan(void *context, int argc, char **argv)
 {
-	esp_err_t e = scanap();
+	esp_err_t e = Hardware_wifi_scanap();
 	if (e != ESP_OK) {
-		ESP_LOGW(__func__, "scanap() failed, reason = %s", esp_err_to_name(e));
+		ESP_LOGW(__func__, "Hardware_wifi_scanap() failed, reason = %s", esp_err_to_name(e));
 		return 1;
 	}
 	return 0;
@@ -44,7 +44,19 @@ static int cb_wifi_scan(void *context, int argc, char **argv)
 
 static int cb_wifi_ip(void *context, int argc, char **argv)
 {
-	Hardware_print_ip();
+	Hardware_wifi_print_ip(stdout);
+	return 0;
+}
+
+static int cb_wifi_disconnect(void *context, int argc, char **argv)
+{
+	Hardware_wifi_disconnect();
+	return 0;
+}
+
+static int cb_wifi_stop(void *context, int argc, char **argv)
+{
+	Hardware_wifi_stop();
 	return 0;
 }
 
@@ -62,7 +74,13 @@ static int cb_wifi_disable(void *context, int argc, char **argv)
 	return 0;
 }
 
-static int cb_wifi_join(void *context, int argc, char **argv)
+static int cb_wifi_start(void *context, int argc, char **argv)
+{
+	Hardware_wifi_start();
+	return 0;
+}
+
+static int cb_wifi_connect(void *context, int argc, char **argv)
 {
 	int nerrors = arg_parse(argc, argv, (void **)&sargs.wifi_cred);
 	if (nerrors != 0) {
@@ -72,7 +90,7 @@ static int cb_wifi_join(void *context, int argc, char **argv)
 	char const *ssid = sargs.wifi_cred.ssid->sval[0];
 	char const *pw = sargs.wifi_cred.pw->sval[0];
 	ESP_LOGI(__func__, "Hardware_wifi_join(): ssid:%s pw:%s", ssid, pw);
-	Hardware_wifi_join(ssid, pw, 10000);
+	Hardware_wifi_connect(ssid, pw, 10000);
 	return 0;
 }
 
@@ -91,10 +109,10 @@ void console_wifi_init()
 	.argtable = &sargs.wifi_cred};
 
 	const esp_console_cmd_t cmd_wifi_join = {
-	.command = "wifi-join",
-	.help = "Join wifi",
+	.command = "wifi-connect",
+	.help = "Connect wifi",
 	.hint = NULL,
-	.func_w_context = (esp_console_cmd_func_with_context_t)&cb_wifi_join,
+	.func_w_context = (esp_console_cmd_func_with_context_t)&cb_wifi_connect,
 	.context = NULL,
 	.argtable = &sargs.wifi_cred};
 
@@ -106,11 +124,27 @@ void console_wifi_init()
 	.context = NULL,
 	};
 
+	const esp_console_cmd_t cmd_wifi_disconnect = {
+	.command = "wifi-disconnect",
+	.help = "Disconnect wifi",
+	.hint = NULL,
+	.func_w_context = &cb_wifi_disconnect,
+	.context = NULL,
+	};
+
 	const esp_console_cmd_t cmd_wifi_disable = {
 	.command = "wifi-disable",
 	.help = "Disable wifi",
 	.hint = NULL,
 	.func_w_context = &cb_wifi_disable,
+	.context = NULL,
+	};
+
+	const esp_console_cmd_t cmd_wifi_stop = {
+	.command = "wifi-stop",
+	.help = "Stop wifi",
+	.hint = NULL,
+	.func_w_context = &cb_wifi_stop,
 	.context = NULL,
 	};
 
@@ -130,12 +164,23 @@ void console_wifi_init()
 	.context = NULL,
 	};
 
+	const esp_console_cmd_t cmd_wifi_start = {
+	.command = "wifi-start",
+	.help = "Start wifi",
+	.hint = NULL,
+	.func_w_context = (esp_console_cmd_func_with_context_t)&cb_wifi_start,
+	.context = NULL,
+	};
+
 	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_cred));
 	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_join));
 	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_enable));
 	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_disable));
+	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_disconnect));
 	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_scan));
 	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_ip));
+	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_stop));
+	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_start));
 
 	return;
 }

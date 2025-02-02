@@ -181,6 +181,7 @@
 		"adc_cali.h": "c",
 		"portmacro.h": "c",
 		"console_wifi.h": "c",
-		"esp_eth.h": "c"
+		"esp_eth.h": "c",
+		"hardware_wifi_scanap.h": "c"
 	}
 }
