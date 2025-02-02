@@ -11,7 +11,7 @@
 #define EXAMPLE_NETIF_DESC_STA "example_netif_sta"
 
 /* FreeRTOS event group to signal when we are connected*/
-static EventGroupHandle_t s_wifi_event_group;
+static EventGroupHandle_t s_wifi_event_group = NULL;
 static esp_netif_t *sta_netif = NULL;
 
 /* The event group allows multiple bits for each event, but we only care about two events:
@@ -46,18 +46,48 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
 
 esp_err_t Hardware_wifi_start()
 {
+	esp_err_t e;
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-	ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+	s_wifi_event_group = xEventGroupCreate();
+	if (s_wifi_event_group == NULL) {
+		ESP_LOGE(__func__, "xEventGroupCreate() failed");
+		return ESP_FAIL;
+	}
+	e = esp_wifi_init(&cfg);
+	if (e != ESP_OK) {
+		ESP_LOGE(__func__, "esp_wifi_init() failed, reason = %s", esp_err_to_name(e));
+		return e;
+	}
 	esp_netif_inherent_config_t esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_WIFI_STA();
 	// Warning: the interface desc is used in tests to capture actual connection details (IP, gw, mask)
 	esp_netif_config.if_desc = EXAMPLE_NETIF_DESC_STA;
 	esp_netif_config.route_prio = 128;
 	sta_netif = esp_netif_create_wifi(WIFI_IF_STA, &esp_netif_config);
-	esp_wifi_set_default_wifi_sta_handlers();
-	ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
-	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-	ESP_ERROR_CHECK(esp_wifi_start());
-	return ESP_OK;
+	if (sta_netif == NULL) {
+		ESP_LOGE(__func__, "esp_netif_create_wifi() failed");
+		return ESP_FAIL;
+	}
+	e = esp_wifi_set_default_wifi_sta_handlers();
+	if (e != ESP_OK) {
+		ESP_LOGE(__func__, "esp_wifi_set_default_wifi_sta_handlers() failed, reason = %s", esp_err_to_name(e));
+		return e;
+	}
+	e = esp_wifi_set_storage(WIFI_STORAGE_RAM);
+	if (e != ESP_OK) {
+		ESP_LOGE(__func__, "esp_wifi_set_storage() failed, reason = %s", esp_err_to_name(e));
+		return e;
+	}
+	e = esp_wifi_set_mode(WIFI_MODE_STA);
+	if (e != ESP_OK) {
+		ESP_LOGE(__func__, "esp_wifi_set_mode() failed, reason = %s", esp_err_to_name(e));
+		return e;
+	}
+	e = esp_wifi_start();
+	if (e != ESP_OK) {
+		ESP_LOGE(__func__, "esp_wifi_start() failed, reason = %s", esp_err_to_name(e));
+		return e;
+	}
+	return e;
 }
 
 esp_err_t Hardware_wifi_join(const char *ssid, const char *pw, int timeout_ms)

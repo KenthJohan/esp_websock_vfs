@@ -17,7 +17,7 @@ static struct {
 	} wifi_cred;
 } sargs;
 
-static int cb_wifi_cred(int argc, char **argv)
+static int cb_wifi_cred(void *context, int argc, char **argv)
 {
 	int nerrors = arg_parse(argc, argv, (void **)&sargs.wifi_cred);
 	if (nerrors != 0) {
@@ -32,7 +32,7 @@ static int cb_wifi_cred(int argc, char **argv)
 	return 0;
 }
 
-static int cb_wifi_scan(int argc, char **argv)
+static int cb_wifi_scan(void *context, int argc, char **argv)
 {
 	esp_err_t e = scanap();
 	if (e != ESP_OK) {
@@ -42,23 +42,37 @@ static int cb_wifi_scan(int argc, char **argv)
 	return 0;
 }
 
-static int cb_wifi_ip(void *arg, int argc, char **argv)
+static int cb_wifi_ip(void *context, int argc, char **argv)
 {
 	Hardware_print_ip();
 	return 0;
 }
 
-static int cb_wifi_enable(int argc, char **argv)
+static int cb_wifi_enable(void *context, int argc, char **argv)
 {
 	Myware_nvs_set_bool_verbose("wifi_enable", true, false);
 	ESP_LOGW(__func__, "Restart needed to take effect");
 	return 0;
 }
 
-static int cb_wifi_disable(int argc, char **argv)
+static int cb_wifi_disable(void *context, int argc, char **argv)
 {
 	Myware_nvs_set_bool_verbose("wifi_enable", false, false);
 	ESP_LOGW(__func__, "Restart needed to take effect");
+	return 0;
+}
+
+static int cb_wifi_join(void *context, int argc, char **argv)
+{
+	int nerrors = arg_parse(argc, argv, (void **)&sargs.wifi_cred);
+	if (nerrors != 0) {
+		arg_print_errors(stderr, sargs.wifi_cred.end, argv[0]);
+		return 1;
+	}
+	char const *ssid = sargs.wifi_cred.ssid->sval[0];
+	char const *pw = sargs.wifi_cred.pw->sval[0];
+	ESP_LOGI(__func__, "Hardware_wifi_join(): ssid:%s pw:%s", ssid, pw);
+	Hardware_wifi_join(ssid, pw, 10000);
 	return 0;
 }
 
@@ -72,28 +86,40 @@ void console_wifi_init()
 	.command = "wifi-cred",
 	.help = "Set WiFi creds",
 	.hint = NULL,
-	.func = &cb_wifi_cred,
+	.func_w_context = &cb_wifi_cred,
+	.context = NULL,
+	.argtable = &sargs.wifi_cred};
+
+	const esp_console_cmd_t cmd_wifi_join = {
+	.command = "wifi-join",
+	.help = "Join wifi",
+	.hint = NULL,
+	.func_w_context = (esp_console_cmd_func_with_context_t)&cb_wifi_join,
+	.context = NULL,
 	.argtable = &sargs.wifi_cred};
 
 	const esp_console_cmd_t cmd_wifi_enable = {
 	.command = "wifi-enable",
 	.help = "Enable wifi",
 	.hint = NULL,
-	.func = &cb_wifi_enable,
+	.func_w_context = &cb_wifi_enable,
+	.context = NULL,
 	};
 
 	const esp_console_cmd_t cmd_wifi_disable = {
 	.command = "wifi-disable",
 	.help = "Disable wifi",
 	.hint = NULL,
-	.func = &cb_wifi_disable,
+	.func_w_context = &cb_wifi_disable,
+	.context = NULL,
 	};
 
 	const esp_console_cmd_t cmd_wifi_scan = {
 	.command = "wifi-scan",
 	.help = "Scan accesspoints",
 	.hint = NULL,
-	.func = &cb_wifi_scan,
+	.func_w_context = &cb_wifi_scan,
+	.context = NULL,
 	};
 
 	const esp_console_cmd_t cmd_wifi_ip = {
@@ -104,9 +130,10 @@ void console_wifi_init()
 	.context = NULL,
 	};
 
+	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_cred));
+	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_join));
 	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_enable));
 	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_disable));
-	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_cred));
 	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_scan));
 	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_wifi_ip));
 
