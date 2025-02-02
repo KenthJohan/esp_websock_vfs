@@ -1,4 +1,5 @@
 idf_component_register(SRCS "main.c" 
+"hardware/wifi_tostr.c"
 "hardware/hardware_wifi.c"
 "myware/myware_nvs.c"
 "web/web_server.c"
@@ -6,6 +7,7 @@ idf_component_register(SRCS "main.c"
 "console/console_nvs.c"
 "console/console_wifi.c"
 "console/console_os.c"
+"console/console_web.c"
 "systems/system_term.c"
 INCLUDE_DIRS "."
 )

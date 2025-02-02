@@ -182,6 +182,7 @@
 		"portmacro.h": "c",
 		"console_wifi.h": "c",
 		"esp_eth.h": "c",
-		"hardware_wifi_scanap.h": "c"
+		"hardware_wifi_scanap.h": "c",
+		"web_server.h": "c"
 	}
 }

@@ -6,7 +6,6 @@
 #include <esp_log.h>
 
 #include "hardware/hardware_wifi.h"
-#include "hardware/hardware_wifi_scanap.h"
 #include "myware/myware_nvs.h"
 
 static struct {

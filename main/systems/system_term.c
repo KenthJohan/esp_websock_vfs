@@ -23,6 +23,7 @@
 #include "console/console_nvs.h"
 #include "console/console_wifi.h"
 #include "console/console_os.h"
+#include "console/console_web.h"
 
 #define CONSOLE_MAX_CMDLINE_ARGS   8
 #define CONSOLE_MAX_CMDLINE_LENGTH 256
@@ -165,6 +166,7 @@ void system_term_init(system_term_t *system)
 	console_nvs_init();
 	console_wifi_init();
 	console_os_init();
+	console_web_init();
 
 	if (linenoiseIsDumbMode()) {
 		printf("\n"

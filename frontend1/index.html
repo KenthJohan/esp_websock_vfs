@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>WebSocket Terminal</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			height: 100vh;
+			margin: 0;
+			background-color: #2a2a2a;
+		}
+
+		#terminal {
+			width: 80%;
+			height: 60%;
+			background: #000;
+			color: #0f0;
+			padding: 10px;
+			overflow-y: auto;
+			border: 1px solid rgb(0, 87, 0);
+		}
+
+		#input {
+			width: 80%;
+			padding: 10px;
+			margin-top: 10px;
+			border: 1px solid rgb(0, 87, 0);
+			background: #000;
+			color: #0f0;
+		}
+
+		#ws-address {
+			width: 80%;
+			padding: 10px;
+			margin-top: 10px;
+			border: 1px solid rgb(0, 87, 0);
+			background: #000;
+			color: #0f0;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="terminal"></div>
+	<input type="text" id="ws-address" placeholder="WebSocket address (e.g., ws://localhost:8080)">
+	<input type="text" id="input" placeholder="Type a command...">
+	<script>
+		const terminal = document.getElementById('terminal');
+		const input = document.getElementById('input');
+		const wsAddressInput = document.getElementById('ws-address');
+		let ws;
+
+		wsAddressInput.addEventListener('keypress', (event) => {
+			if (event.key === 'Enter') {
+				const wsAddress = wsAddressInput.value;
+				ws = new WebSocket(wsAddress);
+
+				ws.onopen = () => {
+					terminal.innerHTML += 'Connected to the server<br>';
+				};
+
+				ws.onmessage = (event) => {
+					terminal.innerHTML += event.data + '<br>';
+					terminal.scrollTop = terminal.scrollHeight;
+				};
+
+				ws.onclose = () => {
+					terminal.innerHTML += 'Disconnected from the server<br>';
+				};
+			}
+		});
+
+		input.addEventListener('keypress', (event) => {
+			if (event.key === 'Enter' && ws && ws.readyState === WebSocket.OPEN) {
+				const message = input.value;
+				ws.send(message);
+				terminal.innerHTML += '> ' + message + '<br>';
+				input.value = '';
+			}
+		});
+	</script>
+</body>
+
+</html>
