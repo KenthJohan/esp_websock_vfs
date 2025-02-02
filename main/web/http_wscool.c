@@ -39,12 +39,37 @@ static esp_err_t trigger_async_send(httpd_handle_t handle, httpd_req_t *req)
 	return ret;
 }
 
+static esp_err_t print_all_ws_fds(httpd_req_t *req)
+{
+	size_t n = CONFIG_LWIP_MAX_LISTENING_TCP;
+	int fds[CONFIG_LWIP_MAX_LISTENING_TCP] = {0};
+
+	esp_err_t ret = httpd_get_client_list(req->handle, &n, fds);
+
+	if (ret != ESP_OK) {
+		return ret;
+	}
+
+	for (int i = 0; i < n; i++) {
+		httpd_ws_client_info_t info = httpd_ws_get_fd_info(req->handle, fds[i]);
+		if (info == HTTPD_WS_CLIENT_WEBSOCKET) {
+			printf("ws-fd: %d\n", fds[i]);
+			// httpd_ws_send_frame_async(server_handle, fds[i], ws_pkt);
+		}
+	}
+
+	return ESP_OK;
+}
+
 static esp_err_t echo_handler(httpd_req_t *req)
 {
 	if (req->method == HTTP_GET) {
 		ESP_LOGI(__func__, "Handshake done, the new connection was opened");
 		return ESP_OK;
 	}
+
+	print_all_ws_fds(req);
+
 	httpd_ws_frame_t ws_pkt;
 	uint8_t *buf = NULL;
 	memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
