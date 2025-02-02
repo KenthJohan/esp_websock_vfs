@@ -68,6 +68,8 @@ static esp_err_t print_all_ws_fds(httpd_req_t *req)
 	return ESP_OK;
 }
 
+static int ws_fd = -1;
+
 static esp_err_t echo_handler(httpd_req_t *req)
 {
 	if (req->method == HTTP_GET) {
@@ -76,6 +78,7 @@ static esp_err_t echo_handler(httpd_req_t *req)
 	}
 
 	print_all_ws_fds(req);
+	ws_fd = httpd_req_to_sockfd(req);
 
 	httpd_ws_frame_t ws_pkt;
 	uint8_t *buf = NULL;
@@ -104,9 +107,11 @@ static esp_err_t echo_handler(httpd_req_t *req)
 			return ret;
 		}
 		// Write received data to the queue for stdin
+		/*
 		if (ws_pkt.len > 0) {
-			xQueueSend(ws_rx_queue, ws_pkt.payload, portMAX_DELAY);
+		    xQueueSend(ws_rx_queue, ws_pkt.payload, portMAX_DELAY);
 		}
+		*/
 		ESP_LOGI(__func__, "Got packet with message: %s", ws_pkt.payload);
 	}
 	ESP_LOGI(__func__, "Packet type: %d", ws_pkt.type);
@@ -124,54 +129,32 @@ static esp_err_t echo_handler(httpd_req_t *req)
 	return ret;
 }
 
-static void uart_log_str(const char *data)
+#define STATIC_BUF_SIZE 128
+static httpd_handle_t static_server_handle = NULL;
+static char static_buf[STATIC_BUF_SIZE] = {0};
+int my_vprintf(const char *fmt, va_list args)
 {
-	uart_write_bytes(UART_NUM_0, data, strlen(data));
-}
-
-static ssize_t vfs_write(int fd, const void *data, size_t size)
-{
-	char buf[128] = {0};
-	sniprintf(buf, sizeof(buf), "vfs_write: fd: %d, data: %s\n", fd, (const char *)data);
-	uart_log_str(buf);
-	if (fd < 0) {
-		errno = EBADF;
-		return -1;
+	// char buf[128] = {0};
+	char *buf = static_buf;
+	int n = vsnprintf(buf, STATIC_BUF_SIZE, fmt, args);
+	if (n < 0) {
+		return n;
 	}
-	return 0;
-}
-
-static ssize_t vfs_read(int fd, void *data, size_t size)
-{
-	char buf[128] = {0};
-	sniprintf(buf, sizeof(buf), "vfs_read: fd: %d, size: %d, data: %s\n", fd, size, (char *)data);
-	uart_log_str(buf);
-	// Read data from the WebSocket RX queue
-	if (xQueueReceive(ws_rx_queue, data, portMAX_DELAY) == pdTRUE) {
-		return strlen((char *)data); // Return the number of bytes read
+	uart_write_bytes(UART_NUM_0, buf, n);
+	if (ws_fd >= 0) {
+		httpd_ws_frame_t ws_pkt;
+		memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+		ws_pkt.payload = (uint8_t *)buf;
+		ws_pkt.len = n;
+		ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+		httpd_ws_send_frame_async(static_server_handle, ws_fd, &ws_pkt);
 	}
-	return 0;
-}
-
-static int vfs_open(const char *path, int flags, int mode)
-{
-	char buf[128] = {0};
-	sniprintf(buf, sizeof(buf), "vfs_open: path: %s, flags: %d, mode: %d\n", path, flags, mode);
-	uart_log_str(buf);
-	return 0;
-}
-
-static int vfs_fstat(int fd, struct stat *st)
-{
-	st->st_mode = S_IFCHR;
-	char buf[128] = {0};
-	sniprintf(buf, sizeof(buf), "vfs_fstat: fd: %d, st_mode: %ld\n", fd, st->st_mode);
-	uart_log_str(buf);
-	return 0;
+	return n;
 }
 
 esp_err_t http_wscool_init(httpd_handle_t server)
 {
+	static_server_handle = server;
 
 	httpd_uri_t uri_ws = {
 	.uri = "/ws",
@@ -182,37 +165,10 @@ esp_err_t http_wscool_init(httpd_handle_t server)
 
 	httpd_register_uri_handler(server, &uri_ws);
 
-	esp_vfs_t vfs = {};
-	vfs.flags = ESP_VFS_FLAG_DEFAULT;
-	vfs.read = vfs_read;
-	vfs.write = vfs_write;
-	vfs.open = vfs_open;
-	vfs.fstat = vfs_fstat,
-
 	// Create a queue for WebSocket RX data
 	ws_rx_queue = xQueueCreate(10, 128); // Adjust queue size as needed
 
-	esp_vfs_register("/dev/wscool", &vfs, NULL);
-
-	FILE *f = fopen("/dev/wscool", "w+");
-	if (f == NULL) {
-		ESP_LOGE(__func__, "Failed to open VFS file");
-		return ESP_FAIL;
-	}
-
-	if (f) {
-		fflush(stdout);
-		fflush(stderr);
-		fflush(stdin);
-		stdout = f;
-		stderr = f;
-		setvbuf(stdout, NULL, _IONBF, 0);
-		setvbuf(stderr, NULL, _IONBF, 0);
-		setvbuf(stdin, NULL, _IONBF, 0);
-	}
-
-	// stdout = f;
-	// stdin = f;
+	esp_log_set_vprintf(my_vprintf);
 
 	return ESP_OK;
 }

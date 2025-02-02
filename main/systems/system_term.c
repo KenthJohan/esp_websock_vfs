@@ -162,7 +162,9 @@ static void private_task_term(system_term_t *system)
 void system_term_init(system_term_t *system)
 {
 	private_uart_init(system);
+
 	private_console_init(system);
+
 	console_nvs_init();
 	console_wifi_init();
 	console_os_init();
