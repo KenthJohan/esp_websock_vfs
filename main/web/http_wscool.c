@@ -112,7 +112,7 @@ static esp_err_t echo_handler(httpd_req_t *req)
 		    xQueueSend(ws_rx_queue, ws_pkt.payload, portMAX_DELAY);
 		}
 		*/
-		ESP_LOGI(__func__, "Got packet with message: %s", ws_pkt.payload);
+		ESP_LOGI(__func__, "Got packet with message: %s,,, %i", ws_pkt.payload, strcmp((char *)ws_pkt.payload, "Trigger async"));
 	}
 	ESP_LOGI(__func__, "Packet type: %d", ws_pkt.type);
 	if (ws_pkt.type == HTTPD_WS_TYPE_TEXT &&
@@ -132,6 +132,7 @@ static esp_err_t echo_handler(httpd_req_t *req)
 #define STATIC_BUF_SIZE 128
 static httpd_handle_t static_server_handle = NULL;
 static char static_buf[STATIC_BUF_SIZE] = {0};
+
 int my_vprintf(const char *fmt, va_list args)
 {
 	// char buf[128] = {0};
@@ -141,6 +142,7 @@ int my_vprintf(const char *fmt, va_list args)
 		return n;
 	}
 	uart_write_bytes(UART_NUM_0, buf, n);
+
 	if (ws_fd >= 0) {
 		httpd_ws_frame_t ws_pkt;
 		memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
@@ -150,6 +152,14 @@ int my_vprintf(const char *fmt, va_list args)
 		httpd_ws_send_frame_async(static_server_handle, ws_fd, &ws_pkt);
 	}
 	return n;
+}
+
+static void private_task_my_wstx(void *system)
+{
+	assert(system != NULL);
+	ESP_LOGI(__func__, "init");
+
+	vTaskDelete(NULL);
 }
 
 esp_err_t http_wscool_init(httpd_handle_t server)
@@ -169,6 +179,8 @@ esp_err_t http_wscool_init(httpd_handle_t server)
 	ws_rx_queue = xQueueCreate(10, 128); // Adjust queue size as needed
 
 	esp_log_set_vprintf(my_vprintf);
+
+	xTaskCreate((TaskFunction_t)private_task_my_wstx, "my_wstx", 1024 * 10, system, 10, NULL);
 
 	return ESP_OK;
 }

@@ -6,8 +6,7 @@
 
 static int cb_start(int argc, char **argv)
 {
-	ESP_LOGI(__func__, "Starting web server...");
-	web_server_init("");
+	ESP_LOGI(__func__, "Starting web server... NOT IMPLEMENTED");
 	return 0;
 }
 
