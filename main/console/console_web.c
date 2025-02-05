@@ -2,7 +2,6 @@
 
 #include <esp_console.h>
 #include <esp_log.h>
-#include "web/web_server.h"
 
 static int cb_start(int argc, char **argv)
 {

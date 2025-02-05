@@ -70,6 +70,10 @@ static void private_task_my_wstx(system_web_t *system)
 	assert(system != NULL);
 	ESP_LOGI(__func__, "init");
 	while (1) {
+		if (system->rb_tx == NULL) {
+			vTaskDelay(pdMS_TO_TICKS(1000));
+			continue;
+		}
 		size_t item_size;
 		uint8_t *item = xRingbufferReceive(system->rb_tx, &item_size, pdMS_TO_TICKS(1000));
 		if (item == NULL) {

@@ -2,7 +2,6 @@
 #include "systems/system_web.h"
 #include "myware/myware_nvs.h"
 #include "hardware/hardware_wifi.h"
-#include "web/web_server.h"
 
 #include <esp_netif.h>
 #include <esp_eth.h>
@@ -65,15 +64,20 @@ int my_vprintf(const char *fmt, va_list args)
 		return n;
 	}
 	uart_write_bytes(UART_NUM_0, buf, n);
-	char *item;
-	UBaseType_t res;
-	res = xRingbufferSendAcquire(system_web.rb_tx, (void **)&item, n, 0);
-	if (res != pdTRUE) {
-		return 0;
-	}
-	res = xRingbufferSendComplete(system_web.rb_tx, &item);
-	if (res != pdTRUE) {
-		printf("Failed to send item\n");
+	if (system_web.rb_tx) {
+		xRingbufferSend(system_web.rb_tx, buf, n, 0);
+		/*
+		char *item;
+		UBaseType_t res;
+		res = xRingbufferSendAcquire(system_web.rb_tx, (void **)&item, n, 0);
+		if (res == pdTRUE) {
+		    res = xRingbufferSendComplete(system_web.rb_tx, &item);
+		    if (res != pdTRUE) {
+		        const char fail[] = "xRingbufferSendComplete failed\n";
+		        uart_write_bytes(UART_NUM_0, fail, sizeof(fail));
+		    }
+		}
+		*/
 	}
 	return n;
 }
